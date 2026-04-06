@@ -1,0 +1,2 @@
+CODEOWNERS = []
+DEPENDENCIES = ["spi", "display"]

@@ -1,2 +1,0 @@
-CODEOWNERS = []
-DEPENDENCIES = ["spi", "display"]
