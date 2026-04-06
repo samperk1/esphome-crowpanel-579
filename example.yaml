@@ -35,11 +35,20 @@ psram:
   mode: octal
   speed: 80MHz
 
+# ── External component: choose one of the two options below ──────────────────
+#
+# Option 1: Pull directly from GitHub (no download needed)
 external_components:
-  - source:
-      type: local
-      path: components
+  - source: github://samperk1/esphome-crowpanel-579
     components: [crowpanel_579]
+#
+# Option 2: Download the repo and reference it locally.
+# Copy the components/ folder into your ESPHome config directory, then use:
+# external_components:
+#   - source:
+#       type: local
+#       path: components
+#     components: [crowpanel_579]
 
 spi:
   clk_pin: GPIO12
