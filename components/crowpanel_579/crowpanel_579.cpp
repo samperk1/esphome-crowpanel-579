@@ -266,6 +266,11 @@ void CrowPanel579::partial_refresh(int x, int y, int w, int h) {
   if (touches_slave) {
     int bs = x / 8;
     int be = (x_end < 399 ? x_end : 399) / 8;
+    // Byte 49 is the slave's natural right boundary (the seam overlap byte).
+    // Excluding it causes the OTP full-waveform to black out all non-window
+    // pixels on the slave chip. Always extend to byte 49 when the region
+    // reaches byte 48.
+    if (be >= 48) be = 49;
     set_window_slave_(bs, be, y, y_end);
     send_command_(0xA4);
     this->dc_pin_->digital_write(true);

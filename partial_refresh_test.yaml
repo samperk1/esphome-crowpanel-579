@@ -1,0 +1,120 @@
+esphome:
+  name: box02build2
+  friendly_name: Box02
+  comment: "partial-refresh-test"
+  on_boot:
+    priority: -100
+    then:
+      - component.update: my_display
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
+      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: "y"
+      CONFIG_SPIRAM_RODATA: "y"
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+  level: DEBUG
+
+api:
+  encryption:
+    key: your own stuff
+ota:
+  - platform: esphome
+    password: your own stuff
+
+wifi:
+  ssid: !secret iot_ssid
+  password: !secret iot_password
+  manual_ip:
+    static_ip: your ip
+    gateway: your gate way
+    subnet: your subnet
+  ap:
+    ssid: "Box02 Fallback Hotspot"
+    password: your password
+
+captive_portal:
+
+globals:
+  - id: test_step
+    type: int
+    initial_value: '0'
+
+font:
+  - file: "gfonts://Roboto"
+    id: roboto_24
+    size: 24
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO2
+      mode: INPUT_PULLUP
+      inverted: true
+    id: btn_next
+    name: "Next Step"
+    filters:
+      - delayed_on: 50ms
+    on_press:
+      then:
+        - lambda: id(test_step) = (id(test_step) + 1) % 4;
+        - component.update: my_display
+
+spi:
+  clk_pin: GPIO12
+  mosi_pin: GPIO11
+
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [crowpanel_579]
+
+display:
+  - platform: crowpanel_579
+    id: my_display
+    dc_pin: GPIO46
+    cs_pin: GPIO45
+    busy_pin:
+      number: GPIO48
+      mode:
+        input: true
+        pulldown: true
+    reset_pin: GPIO47
+    auto_clear_enabled: false
+    update_interval: never
+    lambda: |-
+      // No rotation — all coords are physical: 792 wide x 272 tall
+      // Seam between slave (left) and master (right) chips is at physical x=392
+      int step = id(test_step);
+      if (step == 0) {
+        // Full refresh baseline — seam marker line + LEFT / RIGHT labels
+        it.fill(COLOR_OFF);
+        it.line(392, 0, 392, 271, COLOR_ON);
+        it.print(100, 100, id(roboto_24), COLOR_ON, "LEFT");
+        it.print(500, 100, id(roboto_24), COLOR_ON, "RIGHT");
+        id(my_display).display();
+      } else if (step == 1) {
+        // Partial refresh crossing the seam (physical cols 300-499)
+        it.filled_rectangle(300, 80, 200, 112, COLOR_OFF);
+        it.print(310, 110, id(roboto_24), COLOR_ON, "SEAM OK");
+        id(my_display).partial_refresh(300, 80, 200, 112);
+      } else if (step == 2) {
+        // Slave chip only (physical cols 0-391)
+        it.filled_rectangle(0, 150, 391, 60, COLOR_OFF);
+        it.print(10, 160, id(roboto_24), COLOR_ON, "SLAVE ONLY");
+        id(my_display).partial_refresh(0, 150, 391, 60);
+      } else if (step == 3) {
+        // Master chip only (physical cols 400-791)
+        it.filled_rectangle(400, 150, 391, 60, COLOR_OFF);
+        it.print(410, 160, id(roboto_24), COLOR_ON, "MASTER ONLY");
+        id(my_display).partial_refresh(400, 150, 391, 60);
+      }
