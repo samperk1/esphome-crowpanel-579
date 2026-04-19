@@ -35,6 +35,8 @@ size_t CrowPanel579::get_buffer_length_() { return FULL_BUF; }
 void CrowPanel579::setup() {
   if (this->power_pin_ != nullptr) {
     this->power_pin_->setup();
+    this->power_pin_->digital_write(false);  // cut display power to clear any stuck state
+    delay(500);
     this->power_pin_->digital_write(true);
     delay(100);
   }

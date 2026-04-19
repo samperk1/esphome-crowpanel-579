@@ -1,0 +1,214 @@
+# CrowPanel 5.79" E-Paper — Driver Demo
+# Physical display: 792 × 272 px (landscape, no rotation)
+# MENU button (GPIO2) cycles through 3 pages.
+#
+# Color convention in lambda mode (inverted):
+#   Color::WHITE  →  black ink
+#   Color::BLACK  →  white paper
+#
+# Partial refresh is demonstrated in partial_refresh_test.yaml.
+
+substitutions:
+  device_name: crowpanel-demo
+
+esphome:
+  name: ${device_name}
+  on_boot:
+    priority: -200.0
+    then:
+      - component.update: my_display
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  framework:
+    type: esp-idf
+
+external_components:
+  - source: github://samperk1/esphome-crowpanel-579
+    components: [crowpanel_579]
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+logger:
+api:
+ota:
+  - platform: esphome
+
+spi:
+  clk_pin: GPIO12
+  mosi_pin: GPIO11
+
+globals:
+  - id: page_num
+    type: int
+    restore_value: false
+    initial_value: '0'
+
+font:
+  - file: "gfonts://Roboto@700"
+    id: font_h1
+    size: 60
+  - file: "gfonts://Roboto@700"
+    id: font_h2
+    size: 36
+  - file: "gfonts://Roboto@700"
+    id: font_h3
+    size: 24
+  - file: "gfonts://Roboto@400"
+    id: font_body
+    size: 18
+  - file: "gfonts://Roboto@400"
+    id: font_small
+    size: 14
+  - file: "gfonts://Roboto@700"
+    id: font_label
+    size: 20
+
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO2
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    id: btn_menu
+    filters:
+      - delayed_on: 50ms
+    on_press:
+      - lambda: id(page_num) = (id(page_num) + 1) % 3;
+      - component.update: my_display
+
+display:
+  - platform: crowpanel_579
+    id: my_display
+    cs_pin: GPIO45
+    dc_pin: GPIO46
+    reset_pin: GPIO47
+    busy_pin:
+      number: GPIO48
+      mode:
+        input: true
+        pulldown: true
+    auto_clear_enabled: false
+    update_interval: never
+    lambda: |-
+      it.fill(Color::BLACK);  // white paper background
+
+      // ================================================================
+      // PAGE 0 — BOOT SCREEN
+      // ================================================================
+      if (id(page_num) == 0) {
+
+        // ESPHome house logo — centered at (170, 136), ~150px tall
+        // Derived from ESPHome SVG (400×400): scale=0.636, center offset=(170,136)
+        //   sx = 170 + (svgx - 200) * 0.636
+        //   sy = 136 + (svgy - 196) * 0.636
+
+        // House roof (peak y=65, base y=129, left x=91, right x=250)
+        it.filled_triangle(170, 65, 91, 129, 250, 129, Color::WHITE);
+        // House body (x=91..250, y=129..202)
+        it.filled_rectangle(91, 129, 159, 73, Color::WHITE);
+
+        // E letter inside the house
+        // Step 1: erase a white box where the E will go (x=141..199, y=113..202)
+        it.filled_rectangle(141, 113, 58, 89, Color::BLACK);
+        // Step 2: E left vertical bar (full height)
+        it.filled_rectangle(141, 113,  8, 89, Color::WHITE);
+        // Step 3: E top bar (full width)
+        it.filled_rectangle(141, 113, 58,  8, Color::WHITE);
+        // Step 4: E middle bar 1
+        it.filled_rectangle(149, 129, 50, 22, Color::WHITE);
+        // Step 5: E middle bar 2
+        it.filled_rectangle(149, 158, 50, 23, Color::WHITE);
+        // Step 6: E bottom bar (full width)
+        it.filled_rectangle(141, 189, 58,  7, Color::WHITE);
+
+        // Vertical divider between logo and text
+        it.line(310, 25, 310, 247, Color::WHITE);
+
+        // Text block (centered at x=550)
+        it.printf(550,  77, id(font_h1),   Color::WHITE, display::TextAlign::TOP_CENTER, "ESPHome");
+        it.printf(550, 150, id(font_h3),   Color::WHITE, display::TextAlign::TOP_CENTER, "CrowPanel 5.79\" E-Paper Driver");
+        it.printf(550, 186, id(font_body), Color::WHITE, display::TextAlign::TOP_CENTER, "Dual SSD1683  |  792 x 272  |  ESP32-S3");
+
+        // Page indicator
+        it.printf(789, 255, id(font_small), Color::WHITE, display::TextAlign::TOP_RIGHT, "Press MENU  ->  1 / 3");
+
+      // ================================================================
+      // PAGE 1 — GRAPHICS DEMO
+      // ================================================================
+      } else if (id(page_num) == 1) {
+
+        it.printf(396, 6, id(font_label), Color::WHITE, display::TextAlign::TOP_CENTER, "GRAPHICS DEMO");
+
+        // Section dividers
+        it.line(264, 33, 264, 260, Color::WHITE);
+        it.line(528, 33, 528, 260, Color::WHITE);
+
+        // --- Section 1: Concentric circles (center 132, 144) ---
+        it.circle(132, 144, 100, Color::WHITE);
+        it.circle(132, 144,  78, Color::WHITE);
+        it.circle(132, 144,  56, Color::WHITE);
+        it.circle(132, 144,  34, Color::WHITE);
+        it.circle(132, 144,  12, Color::WHITE);
+        it.filled_circle(132, 144, 5, Color::WHITE);
+        it.printf(132, 252, id(font_small), Color::WHITE, display::TextAlign::TOP_CENTER, "Circles");
+
+        // --- Section 2: Nested rectangles (center 396, 144) ---
+        it.rectangle(396-100, 144-80, 200, 160, Color::WHITE);
+        it.rectangle(396- 78, 144-62, 156, 124, Color::WHITE);
+        it.rectangle(396- 56, 144-44, 112,  88, Color::WHITE);
+        it.rectangle(396- 34, 144-26,  68,  52, Color::WHITE);
+        it.rectangle(396- 12, 144- 9,  24,  18, Color::WHITE);
+        it.printf(396, 252, id(font_small), Color::WHITE, display::TextAlign::TOP_CENTER, "Rectangles");
+
+        // --- Section 3: Star lines (center 660, 144) ---
+        // 8 directions at 45° intervals — elliptical reach (rx=90, ry=70)
+        it.line(660, 144, 750, 144);           // E
+        it.line(660, 144, 724, 199);           // SE  (90*0.707=64, 70*0.707=49)
+        it.line(660, 144, 660, 214);           // S
+        it.line(660, 144, 596, 199);           // SW
+        it.line(660, 144, 570, 144);           // W
+        it.line(660, 144, 596,  89);           // NW
+        it.line(660, 144, 660,  74);           // N
+        it.line(660, 144, 724,  89);           // NE
+        // Outer ellipse approximation (circle, close enough)
+        it.circle(660, 144, 90, Color::WHITE);
+        it.printf(660, 252, id(font_small), Color::WHITE, display::TextAlign::TOP_CENTER, "Lines");
+
+        it.printf(789, 255, id(font_small), Color::WHITE, display::TextAlign::TOP_RIGHT, "MENU  ->  2 / 3");
+
+      // ================================================================
+      // PAGE 2 — TYPOGRAPHY SHOWCASE
+      // ================================================================
+      } else if (id(page_num) == 2) {
+
+        it.printf(396, 5, id(font_label), Color::WHITE, display::TextAlign::TOP_CENTER, "TYPOGRAPHY  —  Roboto");
+
+        // Row 1: 60px bold
+        it.printf(10, 32, id(font_h1), Color::WHITE, "Aa Bb 0123");
+        it.printf(789, 50, id(font_small), Color::WHITE, display::TextAlign::TOP_RIGHT, "Bold 60px");
+
+        // Row 2: 36px bold
+        it.printf(10, 98, id(font_h2), Color::WHITE, "Aa Bb Cc 0123456789");
+        it.printf(789, 110, id(font_small), Color::WHITE, display::TextAlign::TOP_RIGHT, "Bold 36px");
+
+        // Row 3: 24px bold
+        it.printf(10, 140, id(font_h3), Color::WHITE, "ABCDEFGHIJ abcdefghij 0123456789 !@#");
+        it.printf(789, 149, id(font_small), Color::WHITE, display::TextAlign::TOP_RIGHT, "Bold 24px");
+
+        // Row 4: 18px regular
+        it.printf(10, 170, id(font_body), Color::WHITE, "The quick brown fox jumps over the lazy dog. 0123456789");
+        it.printf(789, 178, id(font_small), Color::WHITE, display::TextAlign::TOP_RIGHT, "Regular 18px");
+
+        // Row 5: 14px regular
+        it.printf(10, 196, id(font_small), Color::WHITE, "The quick brown fox jumps over the lazy dog. Pack my box with five dozen liquor jugs.");
+
+        it.printf(789, 255, id(font_small), Color::WHITE, display::TextAlign::TOP_RIGHT, "MENU  ->  3 / 3  (wraps to 1)");
+      }
+
+      id(my_display).display();
