@@ -210,6 +210,99 @@ void CrowPanel579::write_ram_(uint8_t cmd, uint8_t fill, uint32_t count) {
   this->disable();
 }
 
+void CrowPanel579::set_window_slave_(int byte_start, int byte_end, int y_start, int y_end) {
+  send_command_(0x91);
+  send_data_(0x03);
+  send_command_(0xC4);
+  send_data_(byte_start & 0x3F);
+  send_data_(byte_end   & 0x3F);
+  send_command_(0xC5);
+  send_data_(y_start & 0xFF);
+  send_data_((y_start >> 8) & 0x01);
+  send_data_(y_end & 0xFF);
+  send_data_((y_end >> 8) & 0x01);
+  send_command_(0xCE);
+  send_data_(byte_start & 0x3F);
+  send_command_(0xCF);
+  send_data_(y_start & 0xFF);
+  send_data_((y_start >> 8) & 0x01);
+}
+
+void CrowPanel579::set_window_master_(int byte_start, int byte_end, int y_start, int y_end) {
+  // Master X address is inverted: X_addr = 98 - buffer_byte_index
+  // Full panel: byte_start=49 → XSA=49, byte_end=98 → XEA=0 (matches set_ram_master_)
+  int x_addr_start = 98 - byte_start;
+  int x_addr_end   = 98 - byte_end;
+  send_command_(0x11);
+  send_data_(0x02);  // Y increment, X decrement
+  send_command_(0x44);
+  send_data_(x_addr_start & 0x3F);
+  send_data_(x_addr_end   & 0x3F);
+  send_command_(0x45);
+  send_data_(y_start & 0xFF);
+  send_data_((y_start >> 8) & 0x01);
+  send_data_(y_end & 0xFF);
+  send_data_((y_end >> 8) & 0x01);
+  send_command_(0x4E);
+  send_data_(x_addr_start & 0x3F);
+  send_command_(0x4F);
+  send_data_(y_start & 0xFF);
+  send_data_((y_start >> 8) & 0x01);
+}
+
+void CrowPanel579::partial_refresh(int x, int y, int w, int h) {
+  if (w <= 0 || h <= 0) return;
+
+  int x_end = x + w - 1;
+  int y_end = y + h - 1;
+  if (x < 0)       x = 0;
+  if (y < 0)       y = 0;
+  if (x_end > 791) x_end = 791;
+  if (y_end > 271) y_end = 271;
+
+  bool touches_slave  = (x < 400);
+  bool touches_master = (x_end >= 392);
+
+  if (touches_slave) {
+    int bs = x / 8;
+    int be = (x_end < 399 ? x_end : 399) / 8;
+    set_window_slave_(bs, be, y, y_end);
+    send_command_(0xA4);
+    this->dc_pin_->digital_write(true);
+    this->enable();
+    for (int row = y; row <= y_end; row++) {
+      for (int b = bs; b <= be; b++)
+        this->write_byte(this->buffer_[row * BYTES_PER_ROW + b]);
+      App.feed_wdt();
+    }
+    this->disable();
+  }
+
+  if (touches_master) {
+    int px_start = (x >= 392 ? x : 392);
+    int px_end   = (x_end <= 791 ? x_end : 791);
+    int bs = 49 + (px_start - 392) / 8;
+    int be = 49 + (px_end   - 392) / 8;
+    set_window_master_(bs, be, y, y_end);
+    send_command_(0x24);
+    this->dc_pin_->digital_write(true);
+    this->enable();
+    for (int row = y; row <= y_end; row++) {
+      for (int b = bs; b <= be; b++)
+        this->write_byte(this->buffer_[row * BYTES_PER_ROW + b]);
+      App.feed_wdt();
+    }
+    this->disable();
+  }
+
+  // OTP LUT partial refresh — 0xFF uses the full B/W waveform already stored in OTP.
+  // For fast mode, write 0x1A before calling partial_refresh: 0x6E=~1.5s, 0x5A=~1.0s
+  send_command_(0x22);
+  send_data_(0xFF);
+  send_command_(0x20);
+  this->wait_busy_();
+}
+
 void CrowPanel579::init_display_() {
   this->reset_();
   this->wait_busy_();

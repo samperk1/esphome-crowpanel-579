@@ -118,3 +118,18 @@ lvgl:
             text: "Hello from LVGL"
             align: CENTER
             text_color: 0x000000
+
+# ── Option C: Partial refresh ─────────────────────────────────────────────────
+# Call partial_refresh(x, y, w, h) to update a region without a full refresh.
+# Coordinates are physical pixels: x 0–791, y 0–271 (landscape, no rotation).
+# Use display() for a full refresh periodically to clear ghosting.
+#
+# Example — update just a label region after changing its content:
+#   id(my_display).partial_refresh(0, 0, 400, 60);
+#
+# Notes:
+#   - Always call display() on first boot to establish a clean baseline.
+#   - Partial refresh uses the on-chip OTP waveform (no custom LUT needed).
+#   - For faster partial refresh, write 0x6E to register 0x1A before calling:
+#       send_command_(0x1A); send_data_(0x6E);  // ~1.5 s
+#       send_command_(0x1A); send_data_(0x5A);  // ~1.0 s
