@@ -225,6 +225,16 @@ In **LVGL mode** (`draw_pixels_at`) the luminance threshold applies:
 
 ---
 
+## Known Issues
+
+> ⚠️ **ESPHome 2026.4.x — Lambda mode broken (all-black screen)**
+>
+> Lambda mode produces a solid black screen on ESPHome 2026.4.0+. The display hardware works (refresh cycle completes, no busy timeout), but the frame buffer renders incorrectly. Last confirmed working on **ESPHome 2026.3.2**.
+>
+> **Suspected cause:** ESPHome 2026.4.x changed how `DISPLAY_TYPE_BINARY` / `draw_absolute_pixel_internal` behaves, breaking the inverted color convention this driver relies on.
+>
+> **Workaround:** Not yet found. If you have ESPHome 2026.3.x, that version works correctly. PRs welcome.
+
 ## Known Limitations
 
 - Coordinates in `partial_refresh()` are always physical (landscape) regardless of `rotation` setting.
