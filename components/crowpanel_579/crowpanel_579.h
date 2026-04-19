@@ -20,6 +20,7 @@ class CrowPanel579 : public display::DisplayBuffer,
 
   void setup() override;
   void update() override;
+  void fill(Color color) override;
   void display();
   void partial_refresh(int x, int y, int w, int h);
 

@@ -51,6 +51,13 @@ void CrowPanel579::setup() {
   ESP_LOGI(TAG, "Setup complete");
 }
 
+void CrowPanel579::fill(Color color) {
+  // Override ESPHome's fill() — base class may use memset with standard polarity,
+  // but this display has inverted convention (is_on=true → black ink = 0x00).
+  uint8_t fill_byte = color.is_on() ? 0x00 : 0xFF;
+  memset(this->buffer_, fill_byte, this->get_buffer_length_());
+}
+
 void CrowPanel579::update() {
   this->do_update_();
   // When using LVGL: do NOT call display() here.
