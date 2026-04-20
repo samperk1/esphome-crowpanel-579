@@ -2,6 +2,22 @@
 
 A custom ESPHome external component for the **Elecrow CrowPanel 5.79" e-paper display** (model DIS08792E). Supports the ESPHome lambda drawing API, LVGL, and **partial refresh**.
 
+## Demo
+
+Three-page interactive demo cycled with the MENU button (GPIO2). Full source in [`demo.yaml`](demo.yaml).
+
+**Page 1 — Boot screen** (ESPHome logo drawn in primitives):
+
+![Demo page 1 boot screen](docs/images/demo_page1_boot.jpg)
+
+**Page 2 — Graphics demo** (circles, rectangles, lines):
+
+![Demo page 2 graphics](docs/images/demo_page2_graphics.jpg)
+
+**Page 3 — Typography showcase** (Roboto font sizes):
+
+![Demo page 3 typography](docs/images/demo_page3_typography.jpg)
+
 ## Hardware
 
 | Spec | Value |
@@ -134,6 +150,7 @@ lvgl:
 > **LVGL notes:**
 > - `color_depth: 16` is required — 1-bit mode is not supported.
 > - `auto_clear_enabled: false` is required.
+> - `rotation: 90` is required for correct LVGL orientation.
 > - Call `display()` from `on_draw_end`, not from `update()`.
 > - Use `bg_color: 0xFFFFFF` (white paper) and `text_color: 0x000000` (black ink).
 
@@ -188,6 +205,8 @@ These photos show the 4-step partial refresh test (`partial_refresh_test.yaml`):
 
 ## Optional: Power Pin
 
+Add `power_pin: GPIO7` to force a hard power cycle of the display chip on boot. This clears any stuck BUSY state that a normal RST pulse can't recover from — useful after repeated OTA flashes or safe-mode cycles. Also required if your board controls display power for battery management.
+
 ```yaml
 display:
   - platform: crowpanel_579
@@ -240,7 +259,8 @@ In **LVGL mode** (`draw_pixels_at`) the luminance threshold applies:
 - Coordinates in `partial_refresh()` are always physical (landscape) regardless of `rotation` setting.
 - The `display()` and `partial_refresh()` calls block the main loop (~1–3 seconds) while the e-paper panel refreshes.
 - Ghosting accumulates with repeated partial refreshes — periodically call `display()` for a full refresh to clear it.
-- Tested on ESPHome 2026.3.x with ESP-IDF framework only (not Arduino).
+- Tested and confirmed working on ESPHome **2026.3.x** with ESP-IDF framework only (not Arduino).
+- **Broken on ESPHome 2026.4.x** — lambda mode produces all-black screen due to changes in `DISPLAY_TYPE_BINARY` handling. Stay on 2026.3.x until this is resolved.
 
 ---
 
