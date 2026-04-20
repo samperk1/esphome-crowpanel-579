@@ -341,13 +341,13 @@ void CrowPanel579::init_display_() {
   // Clear both RAM banks on both chips to white.
   // Old RAM must match New RAM or the anti-ghosting waveform produces static.
   set_ram_master_();
-  write_ram_(0x24, 0x00, 13600);  // master new RAM = white
+  write_ram_(0x24, 0xFF, 13600);  // master new RAM = white
   set_ram_master_();
-  write_ram_(0x26, 0x00, 13600);  // master old RAM = white
+  write_ram_(0x26, 0xFF, 13600);  // master old RAM = white
   set_ram_slave_();
-  write_ram_(0xA4, 0x00, 13600);  // slave new RAM = white
+  write_ram_(0xA4, 0xFF, 13600);  // slave new RAM = white
   set_ram_slave_();
-  write_ram_(0xA6, 0x00, 13600);  // slave old RAM = white
+  write_ram_(0xA6, 0xFF, 13600);  // slave old RAM = white
 
   // Full refresh to bring panel to known-white state
   send_command_(0x22);
