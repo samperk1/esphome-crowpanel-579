@@ -369,33 +369,22 @@ void CrowPanel579::init_display_() {
   send_data_(0x03);     // border waveform (matches Arduino EPD_FastMode1Init)
   this->wait_busy_();
 
-  // Force a full screen clear regardless of prior display state.
-  // Setting Old RAM = 0x00 (all-black) and New RAM = 0xFF (all-white) causes
-  // every pixel to execute the black→white waveform sequence, which physically
-  // resets the panel even if it was left showing content by previous firmware.
-  // Setting both to 0xFF (white→white) is a no-op in the LUT and leaves any
-  // prior content on screen, corrupting all subsequent Old/New RAM comparisons.
+  // Clear both RAM banks on both chips to white.
+  // Old RAM must match New RAM or the anti-ghosting waveform produces static.
   set_ram_master_();
   write_ram_(0x24, 0xFF, 13600);  // master new RAM = white
   set_ram_master_();
-  write_ram_(0x26, 0x00, 13600);  // master old RAM = black  ← forces real clear
+  write_ram_(0x26, 0xFF, 13600);  // master old RAM = white
   set_ram_slave_();
   write_ram_(0xA4, 0xFF, 13600);  // slave new RAM = white
   set_ram_slave_();
-  write_ram_(0xA6, 0x00, 13600);  // slave old RAM = black   ← forces real clear
+  write_ram_(0xA6, 0xFF, 13600);  // slave old RAM = white
 
-  // Full refresh: black→white waveform clears all pixels to white
+  // Full refresh to bring panel to known-white state
   send_command_(0x22);
   send_data_(0xF7);
   send_command_(0x20);
   this->wait_busy_();
-
-  // Screen is now white. Sync Old RAM to white so the next display() call
-  // computes correct waveform transitions from the actual screen state.
-  set_ram_master_();
-  write_ram_(0x26, 0xFF, 13600);  // master old RAM = white (matches screen)
-  set_ram_slave_();
-  write_ram_(0xA6, 0xFF, 13600);  // slave old RAM = white (matches screen)
 
   ESP_LOGI(TAG, "Init complete");
 }
