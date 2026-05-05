@@ -97,6 +97,17 @@ void CrowPanel579::display() {
   send_data_(0xF7);
   send_command_(0x20);
   this->wait_busy_();
+
+  // The 0xF7 OTP waveform auto-copies New→Old RAM after refresh. If display()
+  // is called again with the same content, Old=New means the W→W phase fires,
+  // but the waveform first drives all pixels black, then only runs B→W
+  // transitions — W→W pixels stay black permanently. Reset Old RAM to 0x00
+  // (all-black) so every future display() call fires the B→W transition for
+  // all white pixels, equivalent to a full refresh every time.
+  set_ram_slave_();
+  write_ram_(0xA6, 0x00, 13600);
+  set_ram_master_();
+  write_ram_(0x26, 0x00, 13600);
 }
 
 void CrowPanel579::draw_absolute_pixel_internal(int x, int y, Color color) {
