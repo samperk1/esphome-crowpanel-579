@@ -97,36 +97,6 @@ void CrowPanel579::display() {
   send_data_(0xF7);
   send_command_(0x20);
   this->wait_busy_();
-
-  // After each refresh, copy the framebuffer to Old RAM on both chips.
-  // The SSD1683 selects per-pixel waveform phases by comparing Old RAM vs
-  // New RAM. The 0xF7 sequence does not auto-update Old RAM, so without this
-  // sync, Old RAM stays at the all-white init state. On the next refresh,
-  // pixels that should transition black→white are seen as white→white (no-op)
-  // and never clear — the display appears frozen after the first update.
-  set_ram_slave_();
-  send_command_(0xA6);
-  this->dc_pin_->digital_write(true);
-  this->enable();
-  for (uint32_t y = 0; y < 272; y++) {
-    uint32_t row = y * BYTES_PER_ROW;
-    for (uint32_t b = 0; b < BYTES_PER_HALF_ROW; b++)
-      this->write_byte(this->buffer_[row + b]);
-    if (y % 68 == 0) App.feed_wdt();
-  }
-  this->disable();
-
-  set_ram_master_();
-  send_command_(0x26);
-  this->dc_pin_->digital_write(true);
-  this->enable();
-  for (uint32_t y = 0; y < 272; y++) {
-    uint32_t row = y * BYTES_PER_ROW;
-    for (uint32_t b = BYTES_PER_HALF_ROW - 1; b < BYTES_PER_ROW; b++)
-      this->write_byte(this->buffer_[row + b]);
-    if (y % 68 == 0) App.feed_wdt();
-  }
-  this->disable();
 }
 
 void CrowPanel579::draw_absolute_pixel_internal(int x, int y, Color color) {
@@ -369,16 +339,18 @@ void CrowPanel579::init_display_() {
   send_data_(0x03);     // border waveform (matches Arduino EPD_FastMode1Init)
   this->wait_busy_();
 
-  // Clear both RAM banks on both chips to white.
-  // Old RAM must match New RAM or the anti-ghosting waveform produces static.
+  // Initialize both RAM banks on both chips to all-black (0x00).
+  // Old RAM stays 0x00 permanently (never synced after display()).
+  // This means every display() call transitions all white pixels (0x00→0xFF),
+  // which prevents ghosting and is equivalent to a full refresh each time.
   set_ram_master_();
-  write_ram_(0x24, 0xFF, 13600);  // master new RAM = white
+  write_ram_(0x24, 0x00, 13600);  // master new RAM = all black
   set_ram_master_();
-  write_ram_(0x26, 0xFF, 13600);  // master old RAM = white
+  write_ram_(0x26, 0x00, 13600);  // master old RAM = all black
   set_ram_slave_();
-  write_ram_(0xA4, 0xFF, 13600);  // slave new RAM = white
+  write_ram_(0xA4, 0x00, 13600);  // slave new RAM = all black
   set_ram_slave_();
-  write_ram_(0xA6, 0xFF, 13600);  // slave old RAM = white
+  write_ram_(0xA6, 0x00, 13600);  // slave old RAM = all black
 
   // Full refresh to bring panel to known-white state
   send_command_(0x22);
